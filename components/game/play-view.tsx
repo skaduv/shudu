@@ -365,7 +365,7 @@ export function PlayView() {
               key={d}
               d={d}
               left={9 - counts[d]}
-              hidden={settings.hideCompletedDigits && counts[d] >= 9}
+              hidden={settings.hideCompletedDigits && counts[d] >= 9 && !game.values.some((v, i) => v === d && game.puzzle.givens[i] === "0" && String(v) !== game.puzzle.solution[i])}
               active={activeDigit === d}
               note={noteMode}
               disabled={won || paused}

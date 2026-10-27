@@ -44,7 +44,7 @@ export function FxProvider({ children }: { children: React.ReactNode }) {
   // 离线缓存（PWA）
   useEffect(() => {
     if ("serviceWorker" in navigator && location.protocol === "https:") {
-      navigator.serviceWorker.register(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/sw.js`).catch(() => {});
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
 

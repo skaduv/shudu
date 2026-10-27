@@ -142,19 +142,29 @@ button { touch-action: manipulation; }
 
 /* ---------- 对局页布局 ---------- */
 .play-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px 12px 0; }
-.board-box { position: relative; width: max(280px, min(calc(100vw - 24px), calc(100dvh - 350px), 700px)); }
-.side { width: max(280px, min(calc(100vw - 24px), calc(100dvh - 350px), 700px)); display: flex; flex-direction: column; gap: 10px; }
+/* 注意：先写 vh 兜底，再用 @supports 覆盖为 dvh。旧内核浏览器（不认 dvh）会整条丢弃声明，导致棋盘宽度塌成 0。 */
+.board-box { position: relative; flex: none; min-width: min(280px, calc(100vw - 24px)); width: max(280px, min(calc(100vw - 24px), calc(100vh - 350px), 700px)); }
+.side { flex: none; width: max(280px, min(calc(100vw - 24px), calc(100vh - 350px), 700px)); display: flex; flex-direction: column; gap: 10px; }
 .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
 .pad .key { height: clamp(50px, 15vw, 72px); }
+@supports (height: 1dvh) {
+  .board-box, .side { width: max(280px, min(calc(100vw - 24px), calc(100dvh - 350px), 700px)); }
+}
 @media (min-width: 640px) and (min-aspect-ratio: 5/4) {
   .play-wrap { flex-direction: row; justify-content: center; align-items: flex-start; gap: 18px; padding-top: 16px; }
-  .board-box { width: max(300px, min(calc(100dvh - 110px), calc(100vw - 420px), 760px)); }
+  .board-box { min-width: 300px; width: max(300px, min(calc(100vh - 110px), calc(100vw - 420px), 760px)); }
   .side { width: 340px; }
   .pad { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .pad .key { height: 76px; }
 }
+@supports (height: 1dvh) {
+  @media (min-width: 640px) and (min-aspect-ratio: 5/4) {
+    .board-box { width: max(300px, min(calc(100dvh - 110px), calc(100vw - 420px), 760px)); }
+    .side { width: 340px; }
+  }
+}
 @media (max-height: 520px) and (orientation: landscape) {
-  .board-box { width: max(260px, calc(100dvh - 80px)); }
+  .board-box { width: max(260px, calc(100vh - 80px)); }
   .pad .key { height: 52px; }
 }
 .float-lens { animation: float-lens 9s ease-in-out infinite alternate; }

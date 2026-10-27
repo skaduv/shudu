@@ -17,4 +17,3 @@ Next.js 16（App Router，静态导出）+ React 19 + Tailwind v4 + lore-glass �
 - lib/uploads.ts        上传题目存 IndexedDB
 - public/puzzles/       内置题库（每档 300 道，Sudoku Exchange Puzzle Bank，公有领域）
 - scripts/serve.py      线上静态服务；scripts/deploy.sh 线上部署
-

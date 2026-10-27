@@ -1,8 +1,6 @@
 // 离线缓存：静态资源与题库缓存优先，页面网络优先（失败时用缓存）
-// 支持子路径部署（如 GitHub Pages 的 /shudu/）：以 sw.js 自身位置推导 base
-const BASE = self.location.pathname.replace(/\/sw\.js$/, "");
-const CACHE = "liquid-sudoku-v1";
-const CORE = ["/", "/play/", "/library/", "/upload/", "/stats/", "/puzzles/easy.json", "/puzzles/medium.json", "/puzzles/hard.json", "/puzzles/diabolical.json", "/icon.svg"].map((p) => BASE + p);
+const CACHE = "liquid-sudoku-v3";
+const CORE = ["/", "/play/", "/library/", "/upload/", "/stats/", "/puzzles/easy.json", "/puzzles/medium.json", "/puzzles/hard.json", "/puzzles/diabolical.json", "/icon.svg"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
@@ -14,7 +12,7 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  const isStatic = url.pathname.startsWith(`${BASE}/_next/static/`) || url.pathname.startsWith(`${BASE}/puzzles/`) || /\.(svg|png|webmanifest)$/.test(url.pathname);
+  const isStatic = url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/puzzles/") || /\.(svg|png|webmanifest)$/.test(url.pathname);
   if (isStatic) {
     e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; })));
     return;
@@ -22,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(url.pathname, copy)); return res; })
-        .catch(() => caches.match(url.pathname).then((hit) => hit || caches.match(`${BASE}/`)))
+        .catch(() => caches.match(url.pathname).then((hit) => hit || caches.match("/")))
     );
   }
 });

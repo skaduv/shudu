@@ -23,7 +23,8 @@ export function Nav() {
       <Panel radius={26} className="w-full max-w-[720px]">
         <nav className="flex h-[52px] items-center gap-1 px-2">
           <Link href="/" className="mr-auto flex items-center gap-2 pl-2 pr-1 font-semibold tracking-tight">
-            <span className="num grid h-8 w-8 place-items-center rounded-[10px] bg-gradient-to-br from-[#5b8cff] to-[#b06bff] text-[15px] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)]">数</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-[10px] shadow-[0_4px_10px_-4px_rgba(90,61,240,0.6)]" />
             <span className="hidden text-[17px] sm:inline">液态数独</span>
           </Link>
           {LINKS.map(({ href, label, icon: Icon }) => {

@@ -44,7 +44,7 @@ export type Stats = Record<Level, LevelStats>;
 const emptyStats = (): LevelStats => ({ started: 0, won: 0, bestMs: null, totalMs: 0, streak: 0, bestStreak: 0 });
 
 export const DEFAULT_SETTINGS: Settings = {
-  mistakeMode: "conflict",
+  mistakeMode: "instant",
   autoClearNotes: true,
   highlightPeers: true,
   highlightSame: true,
@@ -297,7 +297,13 @@ export const useGame = create<State>()(
     },
     {
       name: "liquid-sudoku:v1",
-      version: 1,
+      version: 2,
+      // v2：默认错误提示改为「立即标错」，旧默认值「只标冲突」迁移过来（否则填错但不冲突的格子没有任何提示，容易误以为题目有错）
+      migrate: (persisted: unknown, from: number) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        if (from < 2 && p.settings && p.settings.mistakeMode === "conflict") p.settings = { ...p.settings, mistakeMode: "instant" };
+        return p as State;
+      },
       storage: createJSONStorage(() => debouncedStorage),
       partialize: (s) => ({ version: s.version, games: s.games, currentId: s.currentId, completed: s.completed, settings: s.settings, stats: s.stats }),
       merge: (persisted, current) => {

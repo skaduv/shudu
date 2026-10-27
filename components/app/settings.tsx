@@ -53,7 +53,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <X className="size-4" />
           </GlassDialogClose>
         </div>
-        <div className="scroll-thin max-h-[70dvh] overflow-x-hidden divide-y divide-black/5 overflow-y-auto pr-1 dark:divide-white/10">
+        <div className="scroll-thin max-h-[70vh] supports-[height:1dvh]:max-h-[70dvh] overflow-x-hidden divide-y divide-black/5 overflow-y-auto pr-1 dark:divide-white/10">
           <div className="py-2.5">
             <div className="mb-2 text-[15px] font-medium">错误提示</div>
             <Segmented

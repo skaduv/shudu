@@ -12,8 +12,8 @@ import { useCallback, useEffect, useRef } from "react";
 
 const PAD_X = 40;
 const PAD_Y = 80;
-const INDICATOR_SPRING = { stiffness: 50, damping: 13 };
-const DEFORM_SPRING = { stiffness: 66, damping: 9 };
+const INDICATOR_SPRING = { stiffness: 340, damping: 30 }; // 原 50/13 太慢，加快到约 0.25s 到位
+const DEFORM_SPRING = { stiffness: 380, damping: 22 };
 const VELOCITY_SCALE = 0.134;
 const DEFORM_CLAMP = 0.3;
 const SQUEEZE_X = 0.3;
