@@ -24,7 +24,7 @@ export function Nav() {
         <nav className="flex h-[52px] items-center gap-1 px-2">
           <Link href="/" className="mr-auto flex items-center gap-2 pl-2 pr-1 font-semibold tracking-tight">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-[10px] shadow-[0_4px_10px_-4px_rgba(90,61,240,0.6)]" />
+            <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`} alt="" width={32} height={32} className="h-8 w-8 rounded-[10px] shadow-[0_4px_10px_-4px_rgba(90,61,240,0.6)]" />
             <span className="hidden text-[17px] sm:inline">液态数独</span>
           </Link>
           {LINKS.map(({ href, label, icon: Icon }) => {

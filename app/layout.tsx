@@ -4,12 +4,15 @@ import { FxProvider } from "@/components/app/fx";
 import { Wallpaper } from "@/components/app/wallpaper";
 import { Nav } from "@/components/app/nav";
 
+// metadata 里的绝对路径 Next 不会自动加 basePath，子路径部署需手动拼接
+const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 export const metadata: Metadata = {
   title: "液态数独 · Liquid Sudoku",
   description: "打开即玩的液态玻璃数独：笔记、擦除、撤销、计时、逻辑提示，自动保存进度，支持上传题目。",
-  manifest: "/manifest.webmanifest",
+  manifest: `${base}/manifest.webmanifest`,
   appleWebApp: { capable: true, title: "液态数独", statusBarStyle: "black-translucent" },
-  icons: { icon: "/icon.svg", apple: "/icon-192.png" },
+  icons: { icon: `${base}/icon.svg`, apple: `${base}/icon-192.png` },
 };
 
 export const viewport: Viewport = {

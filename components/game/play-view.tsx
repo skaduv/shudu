@@ -232,7 +232,7 @@ export function PlayView() {
 
   const share = async () => {
     if (!game) return;
-    const url = `${location.origin}/play/?p=${game.puzzle.givens}`;
+    const url = `${location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/play/?p=${game.puzzle.givens}`;
     try {
       if (navigator.share) await navigator.share({ title: "来挑战这道数独", url });
       else { await navigator.clipboard.writeText(url); setToast("分享链接已复制"); }

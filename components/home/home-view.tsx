@@ -122,7 +122,7 @@ export function HomeView() {
             <Library className="size-6 text-[#5b6cff]" />
             <div>
               <div className="text-[15px] font-semibold">题库</div>
-              <div className="text-[12px] text-[var(--ink-soft)]">1200 道精选题，四档难度</div>
+              <div className="text-[12px] text-[var(--ink-soft)]">2200 道精选题，四档难度</div>
             </div>
           </Panel>
         </Link>

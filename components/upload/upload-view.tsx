@@ -78,7 +78,7 @@ export function UploadView() {
 
   const copyLink = async (it: Item) => {
     if (!it.a.ok) return;
-    const url = `${location.origin}/play/?p=${it.a.givens}`;
+    const url = `${location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/play/?p=${it.a.givens}`;
     try { await navigator.clipboard.writeText(url); setMsg("分享链接已复制"); } catch { setMsg(url); }
   };
 

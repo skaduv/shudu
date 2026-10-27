@@ -15,5 +15,9 @@ Next.js 16（App Router，静态导出）+ React 19 + Tailwind v4 + lore-glass �
 - lib/sudoku/           引擎：core 基础、solver 求解/唯一性、logic 技巧求解（提示+评级）、analyze 上传校验
 - lib/store/game.ts     zustand 状态 + localStorage 持久化
 - lib/uploads.ts        上传题目存 IndexedDB
-- public/puzzles/       内置题库（每档 300 道，Sudoku Exchange Puzzle Bank，公有领域）
+- public/puzzles/       内置题库（简单、中等各 300 道，困难、地狱各 800 道，Sudoku Exchange Puzzle Bank，公有领域）
 - scripts/serve.py      线上静态服务；scripts/deploy.sh 线上部署
+
+## 线上部署（InstaBox 机器 cc）
+- 站点目录 ~/sudoku/site（软链到 site.<时间戳>），systemd: sudoku-web(8787) / sudoku-tunnel(cloudflared 快速隧道) / sudoku-keepalive.timer
+- 部署：把 out/ 打包成 tgz，在 cc 上运行 ~/sudoku/deploy.sh <tgz下载地址>

@@ -48,7 +48,7 @@ export function LibraryView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-tight">题库</h1>
-            <p className="text-[13px] text-[var(--ink-soft)]">每档 300 道，均已验证唯一解</p>
+            <p className="text-[13px] text-[var(--ink-soft)]">简单、中等各 300 道，困难、地狱各 800 道，均已验证唯一解</p>
           </div>
           <div className="flex rounded-full bg-black/5 p-0.5 text-[13px] dark:bg-white/10">
             {([["all", "全部"], ["new", "未完成"], ["done", "已完成"]] as const).map(([k, label]) => (
