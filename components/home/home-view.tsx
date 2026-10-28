@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Library, Play, Upload, X } from "lucide-react";
+import { ArrowRight, Library, Play, Upload, UsersRound, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/glass-tabs";
 import { Panel, GButton } from "@/components/app/panel";
 import { Hero } from "./hero";
@@ -115,6 +115,19 @@ export function HomeView() {
           </ul>
         </Panel>
       ) : null}
+
+      <Link href="/room/">
+        <Panel radius={24} className="flex items-center gap-4 p-4" tint={0.32}>
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(145deg,#4facff,#5b6cff)] text-white shadow-[0_8px_20px_-8px_rgba(70,111,255,0.8)]">
+            <UsersRound className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-semibold">联机协作</div>
+            <div className="text-[12px] text-[var(--ink-soft)]">创建房间，和 1–5 位朋友一起解同一道题</div>
+          </div>
+          <ArrowRight className="size-4 shrink-0 text-[var(--ink-soft)]" />
+        </Panel>
+      </Link>
 
       <div className="grid grid-cols-2 gap-3">
         <Link href="/library/">

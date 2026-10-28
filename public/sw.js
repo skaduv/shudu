@@ -1,8 +1,8 @@
 // 离线缓存：静态资源与题库缓存优先，页面网络优先（失败时用缓存）
 // 支持子路径部署（如 GitHub Pages 的 /shudu/）：以 sw.js 自身位置推导 base
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "");
-const CACHE = "liquid-sudoku-v4";
-const CORE = ["/", "/play/", "/library/", "/upload/", "/stats/", "/puzzles/easy.json", "/puzzles/medium.json", "/puzzles/hard.json", "/puzzles/diabolical.json", "/icon.svg"].map((p) => BASE + p);
+const CACHE = "liquid-sudoku-v5";
+const CORE = ["/", "/play/", "/library/", "/upload/", "/stats/", "/room/", "/puzzles/easy.json", "/puzzles/medium.json", "/puzzles/hard.json", "/puzzles/diabolical.json", "/icon.svg"].map((p) => BASE + p);
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });

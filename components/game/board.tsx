@@ -15,6 +15,9 @@ export interface BoardProps {
   highlightSame: boolean;
   won: boolean;
   onTap: (i: number) => void;
+  owners?: Array<string | null>;
+  playerColors?: Record<string, string>;
+  cursors?: Array<{ cell: number; color: string; nickname: string }>;
 }
 
 export const Board = memo(function Board(p: BoardProps) {
@@ -23,6 +26,10 @@ export const Board = memo(function Board(p: BoardProps) {
     <div className={cn("board num", p.won && "won")} role="grid" aria-label="数独盘面">
       {p.values.map((v, i) => {
         const given = p.givens[i] !== "0";
+        const owner = p.owners?.[i] ?? null;
+        const ownerColor = owner ? p.playerColors?.[owner] : undefined;
+        const cursor = p.cursors?.find((item) => item.cell === i);
+        const isError = p.errors.has(i);
         const s = p.sel;
         const isSel = s === i;
         const peer = p.highlightPeers && s != null && !isSel && (ROW(s) === ROW(i) || COL(s) === COL(i) || BOX(s) === BOX(i));
@@ -36,7 +43,7 @@ export const Board = memo(function Board(p: BoardProps) {
           hint.has(i) && "hint",
           isSel && "sel",
           given ? "given" : v ? "user" : "",
-          v && p.errors.has(i) && "err"
+          v && isError && "err"
         );
         return (
           <button
@@ -44,8 +51,12 @@ export const Board = memo(function Board(p: BoardProps) {
             type="button"
             role="gridcell"
             className={cls}
-            style={p.won ? { animationDelay: `${(ROW(i) + COL(i)) * 35}ms` } : undefined}
-            aria-label={`第${ROW(i) + 1}行第${COL(i) + 1}列，${v ? v : "空"}`}
+            style={{
+              animationDelay: p.won ? `${(ROW(i) + COL(i)) * 35}ms` : undefined,
+              color: !given && ownerColor && !isError ? ownerColor : undefined,
+              boxShadow: cursor ? `inset 0 0 0 2px ${cursor.color}` : undefined,
+            }}
+            aria-label={`第${ROW(i) + 1}行第${COL(i) + 1}列，${v ? v : "空"}${cursor ? `，${cursor.nickname}正在查看` : ""}`}
             aria-selected={isSel}
             onClick={() => p.onTap(i)}
           >
@@ -54,9 +65,22 @@ export const Board = memo(function Board(p: BoardProps) {
             ) : p.notes[i] ? (
               <span className="notes">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
-                  <span key={d} className={cn(p.highlightSame && d === p.focusDigit && "on-same")}>{p.notes[i] & bit(d) ? d : ""}</span>
+                  <span
+                    key={d}
+                    className={cn(p.highlightSame && d === p.focusDigit && "on-same")}
+                    style={{ color: !given && ownerColor && !isError ? ownerColor : undefined }}
+                  >
+                    {p.notes[i] & bit(d) ? d : ""}
+                  </span>
                 ))}
               </span>
+            ) : null}
+            {cursor && !isSel ? (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-1 top-1 h-1.5 w-1.5 rounded-full"
+                style={{ background: cursor.color }}
+              />
             ) : null}
           </button>
         );

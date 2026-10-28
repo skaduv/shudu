@@ -9,7 +9,7 @@ const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const metadata: Metadata = {
   title: "液态数独 · Liquid Sudoku",
-  description: "打开即玩的液态玻璃数独：笔记、擦除、撤销、计时、逻辑提示，自动保存进度，支持上传题目。",
+  description: "打开即玩的液态玻璃数独：单人练习、题库与联机协作，支持笔记、计时、逻辑提示和自动保存进度。",
   manifest: `${base}/manifest.webmanifest`,
   appleWebApp: { capable: true, title: "液态数独", statusBarStyle: "black-translucent" },
   icons: { icon: `${base}/icon.svg`, apple: `${base}/icon-192.png` },

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Grid3x3, Library, Settings2, Upload } from "lucide-react";
+import { BarChart3, Grid3x3, Library, Settings2, Upload, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { Panel, GButton } from "./panel";
 import { SettingsDialog } from "./settings";
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/library/", label: "题库", icon: Library },
   { href: "/upload/", label: "上传", icon: Upload },
   { href: "/stats/", label: "统计", icon: BarChart3 },
+  { href: "/room/", label: "联机", icon: UsersRound },
 ];
 
 export function Nav() {
