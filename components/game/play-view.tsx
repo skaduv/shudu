@@ -430,7 +430,7 @@ function DigitKey({ d, left, hidden, active, note, disabled, onPress }: {
   };
   const cancel = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; };
   return (
-    <Panel radius={18} className={cn("key transition-opacity", hidden && "pointer-events-none opacity-0")} tint={active ? 0.95 : undefined}>
+    <Panel flat radius={18} className={cn("key transition-opacity", hidden && "pointer-events-none opacity-0")}>
       <button
         type="button"
         disabled={disabled}

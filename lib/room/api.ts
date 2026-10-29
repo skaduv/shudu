@@ -2,7 +2,13 @@
 
 import { getSupabase } from "@/lib/supabase/client";
 import type { Level, Puzzle } from "@/lib/sudoku/types";
-import type { RoomChange, RoomGame, RoomPlayer } from "./types";
+import type {
+  RoomChange,
+  RoomGame,
+  RoomMessage,
+  RoomMessageKind,
+  RoomPlayer,
+} from "./types";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -32,6 +38,8 @@ export function friendlyRoomError(error: unknown): string {
   if (text.includes("room_not_playing")) return "当前对局已结束或暂停";
   if (text.includes("room_version_conflict")) return "盘面刚刚被其他玩家更新，已自动同步";
   if (text.includes("room_membership_required")) return "你已不在这个房间";
+  if (text.includes("room_rate_limited")) return "消息发送太快，请稍后再试";
+  if (text.includes("invalid_message")) return "消息内容不能为空且不能超过 200 字";
   if (text.includes("invalid_puzzle")) return "题目数据无效";
   if (text.includes("room_code_unavailable")) return "房间码生成失败，请重试";
   if (text.includes("failed to fetch")) return "网络连接失败，请检查网络后重试";
@@ -63,7 +71,37 @@ export async function loadRoomPlayers(roomId: string): Promise<RoomPlayer[]> {
     .eq("room_id", roomId)
     .order("joined_at");
   if (error) throw error;
-  return (data ?? []) as RoomPlayer[];
+  return ((data ?? []) as RoomPlayer[]).map((player) => ({
+    ...player,
+    score: Number(player.score ?? 0),
+    correct_moves: Number(player.correct_moves ?? 0),
+    mistakes: Number(player.mistakes ?? 0),
+  }));
+}
+
+export async function loadRoomMessages(roomId: string): Promise<RoomMessage[]> {
+  const { data, error } = await requireClient()
+    .from("room_messages")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("id", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return ((data ?? []) as RoomMessage[]).reverse();
+}
+
+export async function sendRoomMessage(
+  roomId: string,
+  content: string,
+  kind: RoomMessageKind = "text"
+): Promise<RoomMessage> {
+  const { data, error } = await requireClient().rpc("send_room_message", {
+    p_room_id: roomId,
+    p_content: content,
+    p_kind: kind,
+  });
+  if (error) throw error;
+  return data as RoomMessage;
 }
 
 export async function reloadRoom(roomId: string): Promise<RoomGame> {

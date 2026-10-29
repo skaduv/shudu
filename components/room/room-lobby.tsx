@@ -4,17 +4,29 @@ import { useEffect, useState } from "react";
 import { Check, Copy, Crown, LogOut, Play, UserRoundCheck, UsersRound } from "lucide-react";
 import { GButton, Panel } from "@/components/app/panel";
 import { LEVEL_NAME } from "@/lib/sudoku/types";
-import { ROOM_PLAYER_COLORS, type RoomGame, type RoomPlayer } from "@/lib/room/types";
-import { cn } from "@/lib/utils";
+import {
+  ROOM_PLAYER_COLORS,
+  type RoomConnectionState,
+  type RoomGame,
+  type RoomMessage,
+  type RoomMessageKind,
+  type RoomPlayer,
+} from "@/lib/room/types";
+import { RoomChatButton } from "./room-chat";
+import { RoomConnectionBadge } from "./room-connection";
 
 interface RoomLobbyProps {
   room: RoomGame;
   players: RoomPlayer[];
   userId: string;
-  connected: boolean;
+  connectionState: RoomConnectionState;
+  latencyMs: number | null;
   busy: boolean;
   error: string | null;
   notice: string | null;
+  messages: RoomMessage[];
+  messagesLoaded: boolean;
+  onSendMessage: (content: string, kind: RoomMessageKind) => Promise<void>;
   onCopy: () => void;
   onReady: () => void;
   onStart: () => void;
@@ -25,10 +37,14 @@ export function RoomLobby({
   room,
   players,
   userId,
-  connected,
+  connectionState,
+  latencyMs,
   busy,
   error,
   notice,
+  messages,
+  messagesLoaded,
+  onSendMessage,
   onCopy,
   onReady,
   onStart,
@@ -47,7 +63,7 @@ export function RoomLobby({
   }, []);
 
   return (
-    <main className="safe-b mx-auto flex w-full max-w-[760px] flex-col gap-4 px-3 pb-10 pt-4">
+    <main className="safe-b room-shell mx-auto flex w-full max-w-[780px] flex-col gap-4 px-3 pb-10 pt-4">
       <Panel radius={28} className="overflow-hidden p-5 sm:p-7" tint={0.35}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -61,12 +77,16 @@ export function RoomLobby({
               {room.code}
               <Copy className="size-4 tracking-normal text-[var(--ink-soft)]" />
             </button>
-            <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--ink-soft)]">
-              <span className={cn("inline-block h-2 w-2 rounded-full", connected ? "bg-[#30b85a]" : "animate-pulse bg-[#ff9f0a]")} />
-              {connected ? "实时同步已连接" : "正在连接实时服务"}
-            </div>
+            <RoomConnectionBadge className="mt-2" state={connectionState} latencyMs={latencyMs} />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <RoomChatButton
+              players={players}
+              messages={messages}
+              messagesLoaded={messagesLoaded}
+              userId={userId}
+              onSend={onSendMessage}
+            />
             <GButton variant="capsule" size={40} onClick={onCopy}>
               <Copy className="size-4" /> 复制邀请
             </GButton>
@@ -75,14 +95,14 @@ export function RoomLobby({
             </GButton>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-2 text-[13px] text-[var(--ink-soft)]">
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-[12px] text-[var(--ink-soft)]">
           <span className="rounded-full bg-black/5 px-3 py-1.5 dark:bg-white/10">{LEVEL_NAME[room.difficulty]}</span>
           <span className="rounded-full bg-black/5 px-3 py-1.5 dark:bg-white/10">{players.length}/6 人</span>
           <span className="rounded-full bg-black/5 px-3 py-1.5 dark:bg-white/10">24 小时内有效</span>
         </div>
       </Panel>
 
-      <Panel radius={26} className="p-5">
+      <Panel radius={26} className="p-5 sm:p-6">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-[17px] font-semibold">
             <UsersRound className="size-5 text-[#5b6cff]" />

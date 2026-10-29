@@ -12,12 +12,21 @@ import {
   heartbeatOnlineRoom,
   joinOnlineRoom,
   leaveOnlineRoom,
+  loadRoomMessages,
   loadRoomPlayers,
   reloadRoom,
+  sendRoomMessage,
   setRoomReady,
   startOnlineRoom,
 } from "@/lib/room/api";
-import type { RoomGame as RoomGameType, RoomMemberPresence, RoomPlayer } from "@/lib/room/types";
+import type {
+  RoomConnectionState,
+  RoomGame as RoomGameType,
+  RoomMemberPresence,
+  RoomMessage,
+  RoomMessageKind,
+  RoomPlayer,
+} from "@/lib/room/types";
 import { getSupabase, ensureAnonymousUser, isSupabaseConfigured } from "@/lib/supabase/client";
 import { pickRandom } from "@/lib/bank";
 import { Panel, GButton } from "@/components/app/panel";
@@ -32,6 +41,15 @@ interface PresencePayload {
   active_cell: number | null;
 }
 
+function mergeMessages(current: RoomMessage[], incoming: RoomMessage[]) {
+  const byId = new Map<number, RoomMessage>();
+  for (const message of current) byId.set(message.id, message);
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()]
+    .sort((a, b) => a.id - b.id)
+    .slice(-100);
+}
+
 export function RoomView() {
   const params = useSearchParams();
   const [nickname, setNickname] = useState("");
@@ -41,12 +59,28 @@ export function RoomView() {
   const [room, setRoom] = useState<RoomGameType | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [presence, setPresence] = useState<RoomMemberPresence[]>([]);
-  const [connected, setConnected] = useState(false);
+  const [messages, setMessages] = useState<RoomMessage[]>([]);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "subscribed" | "disconnected">("connecting");
+  const [restHealth, setRestHealth] = useState<"unknown" | "ok" | "bad">("unknown");
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [channelRetryKey, setChannelRetryKey] = useState(0);
   const [busy, setBusy] = useState<BusyAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const channelRetryTimerRef = useRef<number | null>(null);
+  const heartbeatFailuresRef = useRef(0);
+  const fallbackFailuresRef = useRef(0);
   const activeCellRef = useRef<number | null>(null);
+
+  const connectionState = useMemo<RoomConnectionState>(() => {
+    if (!room) return "connecting";
+    if (realtimeStatus === "subscribed") return "live";
+    if (restHealth === "ok") return "syncing";
+    if (restHealth === "bad") return "reconnecting";
+    return "connecting";
+  }, [room, realtimeStatus, restHealth]);
 
   const myPlayer = useMemo(
     () => players.find((player) => player.user_id === userId) ?? null,
@@ -64,6 +98,7 @@ export function RoomView() {
         : null,
     [myPlayer]
   );
+  const activeRoomId = room?.id;
 
   useEffect(() => {
     const queryCode = params.get("code")?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) ?? "";
@@ -94,6 +129,12 @@ export function RoomView() {
     setPlayers(next);
   }, []);
 
+  const handleSendMessage = useCallback(async (content: string, kind: RoomMessageKind) => {
+    if (!activeRoomId) return;
+    const message = await sendRoomMessage(activeRoomId, content, kind);
+    setMessages((current) => mergeMessages(current, [message]));
+  }, [activeRoomId]);
+
   const acceptRoomUpdate = useCallback((next: RoomGameType) => {
     setRoom((current) => (
       current && current.id === next.id && next.version < current.version
@@ -105,6 +146,13 @@ export function RoomView() {
   const enterRoom = useCallback(async (nextRoom: RoomGameType, nextUserId: string) => {
     setRoom(nextRoom);
     setUserId(nextUserId);
+    setMessages([]);
+    setMessagesLoaded(false);
+    setLatencyMs(null);
+    setRestHealth("unknown");
+    setRealtimeStatus("connecting");
+    heartbeatFailuresRef.current = 0;
+    fallbackFailuresRef.current = 0;
     setError(null);
     setNotice(null);
     await updatePlayers(nextRoom.id);
@@ -119,6 +167,22 @@ export function RoomView() {
     setUserId(user.id);
     return user.id;
   }, [userId]);
+
+  useEffect(() => {
+    if (!room?.id) return;
+    let active = true;
+    setMessagesLoaded(false);
+    loadRoomMessages(room.id)
+      .then((history) => {
+        if (!active) return;
+        setMessages((current) => mergeMessages(current, history));
+        setMessagesLoaded(true);
+      })
+      .catch(() => {
+        if (active) setMessagesLoaded(true);
+      });
+    return () => { active = false; };
+  }, [room?.id]);
 
   const handleCreate = async () => {
     if (!nickname.trim()) {
@@ -223,6 +287,11 @@ export function RoomView() {
     setRoom(null);
     setPlayers([]);
     setPresence([]);
+    setMessages([]);
+    setMessagesLoaded(false);
+    setLatencyMs(null);
+    setRestHealth("unknown");
+    setRealtimeStatus("connecting");
     setNotice(null);
     setError(null);
     const url = new URL(window.location.href);
@@ -242,6 +311,20 @@ export function RoomView() {
     const supabase = getSupabase();
     if (!supabase) return;
     let active = true;
+    const clearRetry = () => {
+      if (channelRetryTimerRef.current != null) {
+        window.clearTimeout(channelRetryTimerRef.current);
+        channelRetryTimerRef.current = null;
+      }
+    };
+    const scheduleRetry = () => {
+      if (!active || channelRetryTimerRef.current != null) return;
+      channelRetryTimerRef.current = window.setTimeout(() => {
+        channelRetryTimerRef.current = null;
+        if (active) setChannelRetryKey((value) => value + 1);
+      }, 5_000);
+    };
+    setRealtimeStatus("connecting");
 
     const channel = supabase
       .channel(`room:${room.id}`, {
@@ -261,6 +344,15 @@ export function RoomView() {
           if (active) void updatePlayers(room.id).catch(() => {});
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          if (!active) return;
+          setMessages((current) => mergeMessages(current, [payload.new as RoomMessage]));
+          setMessagesLoaded(true);
+        }
+      )
       .on("presence", { event: "sync" }, () => {
         if (!active) return;
         const states = Object.values(channel.presenceState()).flat() as unknown as PresencePayload[];
@@ -272,40 +364,63 @@ export function RoomView() {
         })));
       })
       .subscribe((status) => {
-        if (active) setConnected(status === "SUBSCRIBED");
+        if (!active) return;
+        if (status === "SUBSCRIBED") {
+          clearRetry();
+          setRealtimeStatus("subscribed");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setRealtimeStatus("disconnected");
+          scheduleRetry();
+        } else {
+          setRealtimeStatus("connecting");
+          scheduleRetry();
+        }
       });
 
     channelRef.current = channel;
     return () => {
       active = false;
+      clearRetry();
       channelRef.current = null;
-      setConnected(false);
+      setRealtimeStatus("connecting");
       void supabase.removeChannel(channel);
     };
-  }, [room?.id, userId, updatePlayers, acceptRoomUpdate]);
+  }, [room?.id, userId, updatePlayers, acceptRoomUpdate, channelRetryKey]);
 
   useEffect(() => {
     const channel = channelRef.current;
-    if (!channel || !connected || !presencePayload) return;
+    if (!channel || realtimeStatus !== "subscribed" || !presencePayload) return;
     void channel.track(presencePayload);
-  }, [connected, presencePayload]);
+  }, [realtimeStatus, presencePayload]);
 
   useEffect(() => {
     if (!room || room.status === "closed") return;
     let active = true;
     const beat = async () => {
+      const startedAt = performance.now();
       try {
         const next = await heartbeatOnlineRoom(room.id);
         if (active) {
+          heartbeatFailuresRef.current = 0;
+          setRestHealth("ok");
+          setLatencyMs(Math.max(1, Math.round(performance.now() - startedAt)));
           acceptRoomUpdate(next);
           await updatePlayers(room.id);
         }
       } catch {
-        // Realtime reconnect and the next heartbeat handle transient failures.
+        if (!active) return;
+        heartbeatFailuresRef.current += 1;
+        if (heartbeatFailuresRef.current >= 2) {
+          setRestHealth("bad");
+          setLatencyMs(null);
+          if (heartbeatFailuresRef.current === 2) {
+            setChannelRetryKey((value) => value + 1);
+          }
+        }
       }
     };
     void beat();
-    const timer = window.setInterval(() => void beat(), 20_000);
+    const timer = window.setInterval(() => void beat(), 8_000);
     return () => {
       active = false;
       window.clearInterval(timer);
@@ -314,31 +429,66 @@ export function RoomView() {
 
   // WebSocket 断开或网络阻断时仍能同步盘面，避免只能等待下一次心跳。
   useEffect(() => {
-    if (!room || connected || room.status === "closed") return;
+    if (!room || realtimeStatus === "subscribed" || room.status === "closed") return;
     let active = true;
 
     const refresh = async () => {
+      const startedAt = performance.now();
       try {
-        const [nextRoom, nextPlayers] = await Promise.all([
+        const [nextRoom, nextPlayers, nextMessages] = await Promise.all([
           reloadRoom(room.id),
           loadRoomPlayers(room.id),
+          loadRoomMessages(room.id),
         ]);
         if (active) {
+          fallbackFailuresRef.current = 0;
+          setRestHealth("ok");
+          setLatencyMs(Math.max(1, Math.round(performance.now() - startedAt)));
           acceptRoomUpdate(nextRoom);
           setPlayers(nextPlayers);
+          setMessages((current) => mergeMessages(current, nextMessages));
+          setMessagesLoaded(true);
         }
       } catch {
-        // Keep the current snapshot until the next poll succeeds.
+        if (!active) return;
+        fallbackFailuresRef.current += 1;
+        if (fallbackFailuresRef.current >= 2) {
+          setRestHealth("bad");
+          setLatencyMs(null);
+        }
       }
     };
 
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 3_000);
+    const timer = window.setInterval(() => void refresh(), 4_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [room?.id, room?.status, connected, acceptRoomUpdate]);
+  }, [room?.id, room?.status, realtimeStatus, acceptRoomUpdate]);
+
+  useEffect(() => {
+    const online = () => {
+      setRestHealth("unknown");
+      setChannelRetryKey((value) => value + 1);
+    };
+    const offline = () => {
+      setRestHealth("bad");
+      setLatencyMs(null);
+    };
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    if (typeof navigator !== "undefined" && !navigator.onLine) offline();
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
+  }, []);
 
   if (room?.status === "waiting") {
     return (
@@ -346,10 +496,14 @@ export function RoomView() {
         room={room}
         players={players}
         userId={userId}
-        connected={connected}
+        connectionState={connectionState}
+        latencyMs={latencyMs}
         busy={busy !== null}
         error={error}
         notice={notice}
+        messages={messages}
+        messagesLoaded={messagesLoaded}
+        onSendMessage={handleSendMessage}
         onCopy={() => void copyInvite()}
         onReady={() => void handleReady()}
         onStart={handleStart}
@@ -365,10 +519,14 @@ export function RoomView() {
         players={players}
         userId={userId}
         presence={presence}
-        connected={connected}
+        connectionState={connectionState}
+        latencyMs={latencyMs}
         busy={busy !== null}
         error={error}
         notice={notice}
+        messages={messages}
+        messagesLoaded={messagesLoaded}
+        onSendMessage={handleSendMessage}
         onRoomUpdate={acceptRoomUpdate}
         onCursor={updateCursor}
         onCopy={() => void copyInvite()}

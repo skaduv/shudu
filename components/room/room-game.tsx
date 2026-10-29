@@ -1,26 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Copy, Crown, Eraser, LogOut, PencilLine, RefreshCw, Trophy, UsersRound, Wifi, WifiOff } from "lucide-react";
+import { CheckCircle2, Copy, Eraser, LogOut, PencilLine, RefreshCw, Trophy, UsersRound } from "lucide-react";
 import { Board } from "@/components/game/board";
 import { GButton, Panel } from "@/components/app/panel";
 import { applyOnlineChanges, friendlyRoomError, reloadRoom } from "@/lib/room/api";
-import { ROOM_PLAYER_COLORS, type RoomChange, type RoomGame, type RoomMemberPresence, type RoomPlayer } from "@/lib/room/types";
+import {
+  ROOM_PLAYER_COLORS,
+  type RoomChange,
+  type RoomConnectionState,
+  type RoomGame,
+  type RoomMemberPresence,
+  type RoomMessage,
+  type RoomMessageKind,
+  type RoomPlayer,
+} from "@/lib/room/types";
 import { BOX, COL, ROW, bit, conflicts } from "@/lib/sudoku/core";
 import { LEVEL_NAME } from "@/lib/sudoku/types";
 import { useGame } from "@/lib/store/game";
 import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { RoomChatButton } from "./room-chat";
+import { RoomConnectionBadge } from "./room-connection";
+import { RoomScoreboard } from "./room-scoreboard";
 
 interface RoomGameProps {
   room: RoomGame;
   players: RoomPlayer[];
   userId: string;
   presence: RoomMemberPresence[];
-  connected: boolean;
+  connectionState: RoomConnectionState;
+  latencyMs: number | null;
   busy: boolean;
   error: string | null;
   notice: string | null;
+  messages: RoomMessage[];
+  messagesLoaded: boolean;
+  onSendMessage: (content: string, kind: RoomMessageKind) => Promise<void>;
   onRoomUpdate: (room: RoomGame) => void;
   onCursor: (cell: number | null) => void;
   onCopy: () => void;
@@ -33,10 +49,14 @@ export function RoomGame({
   players,
   userId,
   presence,
-  connected,
+  connectionState,
+  latencyMs,
   busy,
   error,
   notice,
+  messages,
+  messagesLoaded,
+  onSendMessage,
   onRoomUpdate,
   onCursor,
   onCopy,
@@ -54,7 +74,6 @@ export function RoomGame({
   const puzzle = room.puzzle_data;
   const won = room.status === "won";
   const isHost = room.host_id === userId;
-  const myPlayer = players.find((player) => player.user_id === userId);
   const playerColors = useMemo(
     () => Object.fromEntries(players.map((player) => [player.user_id, ROOM_PLAYER_COLORS[player.color_index] ?? ROOM_PLAYER_COLORS[0]])),
     [players]
@@ -274,40 +293,35 @@ export function RoomGame({
       </div>
 
       <div className="side">
-        <Panel radius={22} className="px-4 py-3">
-          <div className="flex items-center gap-3">
+        <Panel radius={22} className="room-status-card px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[15px] font-semibold">
                 <UsersRound className="size-4 text-[#5b6cff]" />
                 房间 {room.code}
-                <span className={cn("inline-block h-2 w-2 rounded-full", connected ? "bg-[#30b85a]" : "animate-pulse bg-[#ff9f0a]")} />
               </div>
-              <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-[var(--ink-soft)]">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[var(--ink-soft)]">
                 <span>{LEVEL_NAME[room.difficulty]} · {progress}%</span>
+                <span className="opacity-45">·</span>
                 <span>{players.length} 人协作</span>
-                <span className="flex items-center gap-1">
-                  {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
-                  {connected ? "实时同步" : "正在重连"}
-                </span>
               </div>
             </div>
-            <div className="num text-[22px] font-semibold tabular-nums">{formatTime(elapsed)}</div>
-            <GButton size={38} aria-label="复制邀请" onClick={onCopy}><Copy className="size-[17px]" /></GButton>
+            <div className="flex items-center gap-1.5">
+              <div className="num min-w-[54px] text-right text-[21px] font-semibold tabular-nums">{formatTime(elapsed)}</div>
+              <RoomChatButton
+                players={players}
+                messages={messages}
+                messagesLoaded={messagesLoaded}
+                userId={userId}
+                onSend={onSendMessage}
+              />
+              <GButton size={38} aria-label="复制邀请" onClick={onCopy}><Copy className="size-[17px]" /></GButton>
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-            {players.map((player) => (
-              <span key={player.user_id} className="flex items-center gap-1.5 text-[11px] text-[var(--ink-soft)]">
-                <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ background: ROOM_PLAYER_COLORS[player.color_index] ?? ROOM_PLAYER_COLORS[0] }}
-                />
-                <span className="max-w-[100px] truncate">{player.nickname}</span>
-                {player.user_id === room.host_id ? <Crown className="size-3 text-[#ff9f0a]" /> : null}
-                {player.user_id === userId ? <span>（你）</span> : null}
-              </span>
-            ))}
-          </div>
+          <RoomConnectionBadge className="mt-2.5" state={connectionState} latencyMs={latencyMs} />
         </Panel>
+
+        <RoomScoreboard room={room} players={players} userId={userId} compact />
 
         {won ? (
           <Panel radius={20} className="p-4" tint={0.8}>
@@ -352,7 +366,7 @@ export function RoomGame({
 
         <div className="pad">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
-            <Panel key={digit} radius={18} className={cn("key transition-opacity", settings.hideCompletedDigits && counts[digit] >= 9 && "pointer-events-none opacity-0")} tint={activeDigit === digit ? 0.95 : undefined}>
+            <Panel key={digit} flat radius={18} className={cn("key transition-opacity", settings.hideCompletedDigits && counts[digit] >= 9 && "pointer-events-none opacity-0")}>
               <button
                 type="button"
                 disabled={won || submitting}
@@ -370,7 +384,7 @@ export function RoomGame({
           ))}
         </div>
         <p className="text-center text-[12px] text-[var(--ink-soft)]">
-          {submitting ? "正在同步…" : `轮到所有人协作 · ${myPlayer?.nickname ?? "你"}的颜色记录在落子上`}
+          {submitting ? "正在同步…" : "落子底部颜色表示归属 · 红色数字表示错误"}
         </p>
         {notice ? <p className="text-center text-[12px] text-[#30b85a]">{notice}</p> : null}
         {error ? <p role="alert" className="text-center text-[12px] text-[var(--error)]">{error}</p> : null}

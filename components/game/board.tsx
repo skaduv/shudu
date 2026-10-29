@@ -53,10 +53,9 @@ export const Board = memo(function Board(p: BoardProps) {
             className={cls}
             style={{
               animationDelay: p.won ? `${(ROW(i) + COL(i)) * 35}ms` : undefined,
-              color: !given && ownerColor && !isError ? ownerColor : undefined,
               boxShadow: cursor ? `inset 0 0 0 2px ${cursor.color}` : undefined,
             }}
-            aria-label={`第${ROW(i) + 1}行第${COL(i) + 1}列，${v ? v : "空"}${cursor ? `，${cursor.nickname}正在查看` : ""}`}
+            aria-label={`第${ROW(i) + 1}行第${COL(i) + 1}列，${v ? v : "空"}${isError ? "，填写有误" : ""}${cursor ? `，${cursor.nickname}正在查看` : ""}`}
             aria-selected={isSel}
             onClick={() => p.onTap(i)}
           >
@@ -75,6 +74,14 @@ export const Board = memo(function Board(p: BoardProps) {
                 ))}
               </span>
             ) : null}
+            {!given && ownerColor && (v || p.notes[i]) ? (
+              <span
+                aria-hidden="true"
+                className="owner-mark"
+                style={{ background: ownerColor }}
+              />
+            ) : null}
+            {isError ? <span aria-hidden="true" className="error-mark">!</span> : null}
             {cursor && !isSel ? (
               <span
                 aria-hidden="true"

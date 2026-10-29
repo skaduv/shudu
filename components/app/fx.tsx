@@ -11,15 +11,24 @@ function detect(): Fx {
   if (typeof window === "undefined") return "full";
   const mq = (q: string) => window.matchMedia?.(q).matches;
   if (mq("(prefers-reduced-transparency: reduce)") || mq("(prefers-reduced-motion: reduce)")) return "lite";
-  const nav = navigator as Navigator & { deviceMemory?: number };
-  if ((nav.deviceMemory && nav.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2)) return "lite";
+  const nav = navigator as Navigator & {
+    deviceMemory?: number;
+    connection?: { saveData?: boolean; effectiveType?: string };
+  };
+  if (
+    nav.connection?.saveData
+    || nav.connection?.effectiveType === "2g"
+    || (nav.deviceMemory && nav.deviceMemory <= 4)
+    || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+    || (mq("(pointer: coarse)") && window.innerWidth < 1024)
+  ) return "lite";
   return "full";
 }
 
 export function FxProvider({ children }: { children: React.ReactNode }) {
   const pref = useGame((s) => s.settings.effects);
   const theme = useGame((s) => s.settings.theme);
-  const [auto, setAuto] = useState<Fx>("full");
+  const [auto, setAuto] = useState<Fx>("lite");
   useEffect(() => setAuto(detect()), []);
   const fx: Fx = pref === "auto" ? auto : pref;
 
