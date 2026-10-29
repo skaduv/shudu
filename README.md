@@ -24,9 +24,7 @@ V1 联机模式使用 Supabase 的匿名登录、Postgres 和 Realtime。前端�
 
 1. 在 Supabase 创建项目，区域优先选择离目标用户最近的 Tokyo 或 Singapore。
 2. 在 Authentication 设置中启用匿名登录（Anonymous sign-ins）。
-3. 在 SQL Editor 按顺序执行：
-   - `supabase/migrations/202610280001_online_rooms.sql`
-   - `supabase/migrations/202610290001_room_scores_chat.sql`
+3. 在 SQL Editor 执行 `supabase/migrations/202610280001_online_rooms.sql`。该脚本包含全部联机功能，可安全重复执行，也兼容已经执行过旧版联机迁移的数据库。
 4. 复制 `.env.example` 为 `.env.local`，填入项目 URL 和 publishable key。
 5. GitHub Pages 部署时，在仓库 Actions secrets 中配置 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
 
